@@ -54,18 +54,19 @@ public class BlendshapeAnalyzer : EditorWindow
         }
     }
 
-    private AvatarBlendshapes avatarBlendshapes;
 
-    private Animator avatarAnimator;
-    private AnimatorController avatarAnimatorController;
-    private VRCAvatarDescriptor avatarDescriptor;
-    
+    // General
     private Vector2 scrollPos = Vector2.zero;
-
+    // Blendshapes
+    private AvatarBlendshapes avatarBlendshapes;
+    private VRCAvatarDescriptor avatarDescriptor;
     // Mesh Name -> Set of Blendshapes
     private Dictionary<string, HashSet<string>> knownBlendshapes;
-
+    // Log
     private string crudeTextLog = "Hello World";
+    private bool showCrudeTextLog = false;
+    // Mesh Analyzer
+    private SkinnedMeshRenderer skinnedMeshRenderer;
 
     [MenuItem("Tools/Search Unused Blendshapes")]
     static void CreateNewWindow()
@@ -83,13 +84,7 @@ public class BlendshapeAnalyzer : EditorWindow
     {
         scrollPos = GUILayout.BeginScrollView(scrollPos, GUIStyle.none);
 
-        avatarAnimatorController = ((AnimatorController)EditorGUILayout.ObjectField(avatarAnimatorController,
-            typeof(AnimatorController),
-            true));
-
         avatarDescriptor = ((VRCAvatarDescriptor)EditorGUILayout.ObjectField(avatarDescriptor, typeof(VRCAvatarDescriptor), true));
-
-
 
         if (GUILayout.Button("Analyze Blendshape Usage") && avatarDescriptor != null)
         {
@@ -203,68 +198,110 @@ public class BlendshapeAnalyzer : EditorWindow
             }
         }
 
-        foreach(KeyValuePair<string, MeshBlendshapes> kvp in avatarBlendshapes.meshes) {
-            kvp.Value.show = EditorGUILayout.Foldout(kvp.Value.show, kvp.Key);
-            if(kvp.Value.show) {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.Space(1);
-                EditorGUILayout.BeginVertical();
-                EditorGUILayout.ObjectField(kvp.Value.skinnedMeshRenderer, typeof(SkinnedMeshRenderer), true);
-                string used = "";
-                string unused = "";
-                foreach(KeyValuePair<string, BlendshapeUsage> kvp2 in kvp.Value.blendshapes) {
-                    if(kvp2.Value.inUse) {
-                        used += kvp2.Value.name + "\n";
-                    } else {
-                        unused += kvp2.Value.name + "\n";
-                    }
-                }
-                EditorGUILayout.LabelField("Blendshapes in use by Animations or Avatarsettings");
-                EditorGUILayout.TextArea(used);
-                EditorGUILayout.LabelField("Unused:");
-                EditorGUILayout.TextArea(unused);
-                if (GUILayout.Button("Delete unused Blendshapes"))
+        if (avatarBlendshapes?.meshes != null)
+        {
+            foreach (KeyValuePair<string, MeshBlendshapes> kvp in avatarBlendshapes.meshes)
+            {
+                kvp.Value.show = EditorGUILayout.Foldout(kvp.Value.show, kvp.Key);
+                if (kvp.Value.show)
                 {
-                    Undo.RecordObject(kvp.Value.skinnedMeshRenderer, "Optimized Blendshapes");
-                    MeshSimplifier ms = new MeshSimplifier(kvp.Value.skinnedMeshRenderer.sharedMesh);
-                    /*BlendShape[] bs = ms.GetAllBlendShapes();
-                    ms.ClearBlendShapes();
-
-                    foreach (BlendShape b in bs)
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.ObjectField(kvp.Value.skinnedMeshRenderer, typeof(SkinnedMeshRenderer), true);
+                    string used = "";
+                    string unused = "";
+                    foreach (KeyValuePair<string, BlendshapeUsage> kvp2 in kvp.Value.blendshapes)
                     {
-                        if (kvp.Value.blendshapes[b.ShapeName].inUse)
+                        if (kvp2.Value.inUse)
                         {
-                            ms.AddBlendShape(b);
+                            used += kvp2.Value.name + "\n";
                         }
-                    }*/
-                    Mesh filteredMesh = ms.ToMesh();
-                    filteredMesh.Optimize();
-                    System.DateTime foo = System.DateTime.Now;
-                    long unixTime = ((System.DateTimeOffset)foo).ToUnixTimeSeconds();
-                    if (!AssetDatabase.IsValidFolder("Assets/OptimizedMeshes"))
-                    {
-                        AssetDatabase.CreateFolder("Assets", "OptimizedMeshes");
+                        else
+                        {
+                            unused += kvp2.Value.name + "\n";
+                        }
                     }
+                    EditorGUILayout.LabelField("Blendshapes in use by Animations or Avatarsettings");
+                    EditorGUILayout.TextArea(used.TrimEnd('\r', '\n'));
+                    EditorGUILayout.LabelField("Unused:");
+                    EditorGUILayout.TextArea(unused.TrimEnd('\r', '\n'));
+                    if (GUILayout.Button("Delete unused Blendshapes"))
+                    {
+                        Undo.RecordObject(kvp.Value.skinnedMeshRenderer, "Optimized Blendshapes");
+                        MeshSimplifier ms = new MeshSimplifier(kvp.Value.skinnedMeshRenderer.sharedMesh);
+                        BlendShape[] bs = ms.GetAllBlendShapes();
+                        ms.ClearBlendShapes();
 
-                    AssetDatabase.CreateAsset(filteredMesh, "Assets/OptimizedMeshes/" + kvp.Key + $"{unixTime}.mesh");
-                    kvp.Value.skinnedMeshRenderer.sharedMesh = filteredMesh;
-                }
+                        foreach (BlendShape b in bs)
+                        {
+                            if (kvp.Value.blendshapes[b.ShapeName].inUse)
+                            {
+                                ms.AddBlendShape(b);
+                            }
+                        }
+                        Mesh filteredMesh = ms.ToMesh();
+                        filteredMesh.Optimize();
+                        System.DateTime foo = System.DateTime.Now;
+                        long unixTime = ((System.DateTimeOffset)foo).ToUnixTimeSeconds();
+                        if (!AssetDatabase.IsValidFolder("Assets/OptimizedMeshes"))
+                        {
+                            AssetDatabase.CreateFolder("Assets", "OptimizedMeshes");
+                        }
 
-                EditorGUILayout.TextField(kvp.Value.skinnedMeshRenderer.sharedMesh.indexFormat == UnityEngine.Rendering.IndexFormat.UInt16 ? "UInt16" : "UInt32" );
-                Mesh m = kvp.Value.skinnedMeshRenderer.sharedMesh;
-                string attributeText = "";
-                foreach(UnityEngine.Rendering.VertexAttributeDescriptor desc in m.GetVertexAttributes()) {
-                    attributeText += $"{desc.attribute} {desc.dimension} {desc.format} {desc.stream}\n";
+                        AssetDatabase.CreateAsset(filteredMesh, "Assets/OptimizedMeshes/" + kvp.Key + $"{unixTime}.mesh");
+                        kvp.Value.skinnedMeshRenderer.sharedMesh = filteredMesh;
+                    }
+                    displayMeshDetails(kvp.Value?.skinnedMeshRenderer?.sharedMesh);
+
+                    EditorGUI.indentLevel--;
                 }
-                EditorGUILayout.TextArea(attributeText);
-                EditorGUILayout.EndVertical();
-                EditorGUILayout.EndHorizontal();
             }
         }
 
         EditorGUILayout.Space();
 
-        EditorGUILayout.TextArea(crudeTextLog);
+        EditorGUILayout.TextArea(crudeTextLog.TrimEnd('\r', '\n'));
+
+        EditorGUILayout.Space();
+        
+
+        showCrudeTextLog = EditorGUILayout.Foldout(showCrudeTextLog, "Text Log:");
+        if(showCrudeTextLog) {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.TextArea(crudeTextLog.TrimEnd('\r', '\n'));
+            EditorGUI.indentLevel--;
+        }
+
+        skinnedMeshRenderer = ((SkinnedMeshRenderer)EditorGUILayout.ObjectField(skinnedMeshRenderer, typeof(SkinnedMeshRenderer), true));
+        if(skinnedMeshRenderer != null) {
+            EditorGUI.indentLevel++;
+            if(skinnedMeshRenderer.sharedMesh != null) {
+                displayMeshDetails(skinnedMeshRenderer.sharedMesh);
+                if(GUILayout.Button("Delete UV2")) {
+                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without UV2");
+                    Mesh newMesh = createMeshCopy(skinnedMeshRenderer.sharedMesh);
+                    newMesh.uv2 = null;
+                    skinnedMeshRenderer.sharedMesh = newMesh;
+                    
+                }
+                if (GUILayout.Button("Delete Color (Float32)"))
+                {
+                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without UV2");
+                    Mesh newMesh = createMeshCopy(skinnedMeshRenderer.sharedMesh);
+                    newMesh.colors = null;
+                    skinnedMeshRenderer.sharedMesh = newMesh;
+                }
+                if (GUILayout.Button("Delete Color32 (UNorm8)"))
+                {
+                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without Colors32");
+                    Mesh newMesh = createMeshCopy(skinnedMeshRenderer.sharedMesh);
+                    newMesh.colors32 = null;
+                    skinnedMeshRenderer.sharedMesh = newMesh;
+                }
+            }
+            EditorGUI.indentLevel--;
+        }
+
+
         GUILayout.EndScrollView();
     }
 
@@ -317,6 +354,23 @@ public class BlendshapeAnalyzer : EditorWindow
         }
 
         return newMesh;
+    }
+
+    private void displayMeshDetails(Mesh mesh) {
+        if (mesh == null) return;
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("indexFormat");
+        EditorGUILayout.TextField(mesh.indexFormat == UnityEngine.Rendering.IndexFormat.UInt16 ? "UInt16" : "UInt32");
+        EditorGUILayout.EndHorizontal();
+        string attributeText = "";
+        foreach (UnityEngine.Rendering.VertexAttributeDescriptor desc in mesh.GetVertexAttributes())
+        {
+            attributeText += $"{desc.attribute}\t{desc.dimension}\t{desc.format}\t{desc.stream}\n";
+        }
+        EditorGUILayout.LabelField("VertexAttributes (Attribute, Dimension, Format, Stream#)");
+        EditorGUI.indentLevel++;
+        EditorGUILayout.TextArea(attributeText.TrimEnd('\r', '\n'));
+        EditorGUI.indentLevel--;
     }
 
     private void extractRuntimeAnimatorControllerBlendshapes(RuntimeAnimatorController avatarAnimatorController)
