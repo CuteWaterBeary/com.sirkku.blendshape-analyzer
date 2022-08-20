@@ -14,21 +14,25 @@ using UnityMeshSimplifier;
 
 public class BlendshapeAnalyzer : EditorWindow
 {
-    class AvatarBlendshapes {
+    class AvatarBlendshapes
+    {
         public Dictionary<string, MeshBlendshapes> meshes;
 
-        public AvatarBlendshapes() {
+        public AvatarBlendshapes()
+        {
             meshes = new Dictionary<string, MeshBlendshapes>();
         }
     }
 
-    class MeshBlendshapes {
+    class MeshBlendshapes
+    {
         public bool show;
         public SkinnedMeshRenderer skinnedMeshRenderer;
         public string meshName;
         public Dictionary<string, BlendshapeUsage> blendshapes;
 
-        public MeshBlendshapes() {
+        public MeshBlendshapes()
+        {
             blendshapes = new Dictionary<string, BlendshapeUsage>();
             show = false;
             meshName = "";
@@ -36,20 +40,24 @@ public class BlendshapeAnalyzer : EditorWindow
         }
     }
 
-    class BlendshapeUsage {
+    class BlendshapeUsage
+    {
         public string name;
         public bool inUse;
-        public BlendshapeUsage(string name, bool inUse) {
+        public BlendshapeUsage(string name, bool inUse)
+        {
             this.name = name;
             this.inUse = inUse;
         }
     }
 
-    class VertexAttributeChange {
+    class VertexAttributeChange
+    {
         public UnityEngine.Rendering.VertexAttributeDescriptor vertAttrDesc;
         enum ChangeDecision { NO_CHANGE, REMOVE, CONVERT_TO_NORM8, CONVERT_TO_F32 };
         ChangeDecision changeDecision;
-        public VertexAttributeChange(UnityEngine.Rendering.VertexAttributeDescriptor vertAttrDesc) {
+        public VertexAttributeChange(UnityEngine.Rendering.VertexAttributeDescriptor vertAttrDesc)
+        {
             this.vertAttrDesc = vertAttrDesc;
         }
     }
@@ -120,13 +128,14 @@ public class BlendshapeAnalyzer : EditorWindow
                     int blendShapeCount = smr.sharedMesh.blendShapeCount;
                     foreach (int i in avatarDescriptor.customEyeLookSettings.eyelidsBlendshapes)
                     {
-                        if (i == -1) break;
+                        // The eye blendshape settings can be out of range
+                        if (i == -1 || i >= smr.sharedMesh.blendShapeCount) break;
                         knownBlendshapes[avatarDescriptor.customEyeLookSettings.eyelidsSkinnedMesh.name]
                             .Add(smr.sharedMesh.GetBlendShapeName(i));
                     }
                 }
             }
-                
+
             foreach (VRCAvatarDescriptor.CustomAnimLayer cal in avatarDescriptor.baseAnimationLayers)
             {
                 if (cal.animatorController != null)
@@ -262,30 +271,58 @@ public class BlendshapeAnalyzer : EditorWindow
         EditorGUILayout.TextArea(crudeTextLog.TrimEnd('\r', '\n'));
 
         EditorGUILayout.Space();
-        
+
 
         showCrudeTextLog = EditorGUILayout.Foldout(showCrudeTextLog, "Text Log:");
-        if(showCrudeTextLog) {
+        if (showCrudeTextLog)
+        {
             EditorGUI.indentLevel++;
             EditorGUILayout.TextArea(crudeTextLog.TrimEnd('\r', '\n'));
             EditorGUI.indentLevel--;
         }
 
         skinnedMeshRenderer = ((SkinnedMeshRenderer)EditorGUILayout.ObjectField(skinnedMeshRenderer, typeof(SkinnedMeshRenderer), true));
-        if(skinnedMeshRenderer != null) {
+        if (skinnedMeshRenderer != null)
+        {
             EditorGUI.indentLevel++;
-            if(skinnedMeshRenderer.sharedMesh != null) {
+            if (skinnedMeshRenderer.sharedMesh != null)
+            {
                 displayMeshDetails(skinnedMeshRenderer.sharedMesh);
-                if(GUILayout.Button("Delete UV2")) {
-                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without UV2");
+                for(int i = 2; i <= 8; i++) { 
+                if (GUILayout.Button($"Delete UV{i}"))
+                {
+                    Undo.RecordObject(skinnedMeshRenderer, $"Create mesh copy without UV{i}");
                     Mesh newMesh = createMeshCopy(skinnedMeshRenderer.sharedMesh);
-                    newMesh.uv2 = null;
+                    switch(i) {
+                            case 2:
+                                newMesh.uv2 = null;
+                                break;
+                            case 3:
+                                newMesh.uv3 = null;
+                                break;
+                            case 4:
+                                newMesh.uv4 = null;
+                                break;
+                            case 5:
+                                newMesh.uv5 = null;
+                                break;
+                            case 6:
+                                newMesh.uv6 = null;
+                                break;
+                            case 7:
+                                newMesh.uv7 = null;
+                                break;
+                            case 8:
+                                newMesh.uv8 = null;
+                                break;
+                        }
                     skinnedMeshRenderer.sharedMesh = newMesh;
-                    
+
+                }
                 }
                 if (GUILayout.Button("Delete Color (Float32)"))
                 {
-                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without UV2");
+                    Undo.RecordObject(skinnedMeshRenderer, "Create mesh copy without Colors");
                     Mesh newMesh = createMeshCopy(skinnedMeshRenderer.sharedMesh);
                     newMesh.colors = null;
                     skinnedMeshRenderer.sharedMesh = newMesh;
@@ -356,7 +393,8 @@ public class BlendshapeAnalyzer : EditorWindow
         return newMesh;
     }
 
-    private void displayMeshDetails(Mesh mesh) {
+    private void displayMeshDetails(Mesh mesh)
+    {
         if (mesh == null) return;
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("indexFormat");
