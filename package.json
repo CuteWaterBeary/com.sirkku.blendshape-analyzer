@@ -1,0 +1,24 @@
+{
+  "name": "avatarmeshoptimizer",
+  "version": "0.1.0",
+  "displayName": "Avatar Mesh Optimizer",
+  "description": "One-Click Solution for loss-less optimization ",
+  "unity": "2019.4",
+  "unityRelease": "31f5",
+  "documentationUrl": "https://example.com/",
+  "changelogUrl": "https://example.com/changelog.html",
+  "licensesUrl": "https://example.com/licensing.html",
+  "dependencies": {
+    "com.whinarn.unitymeshsimplifier": "3.1.0"
+ },
+ "keywords": [
+    "3d",
+    "mesh",
+    "optimization"
+  ],
+  "author": {
+    "name": "",
+    "email": "",
+    "url": ""
+  }
+}
