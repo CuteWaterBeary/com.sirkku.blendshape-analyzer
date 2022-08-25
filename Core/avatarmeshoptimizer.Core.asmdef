@@ -1,7 +1,7 @@
 {
-    "name": "avatarmeshoptimizer.Editor",
+    "name": "avatarmeshoptimizer.Core",
     "references": [
-        "GUID:f66cf2bbf3a072d4b88e3078698b6324"
+        "GUID:77ccaf49895b0d64e87cd4b4faf83c49"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
