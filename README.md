@@ -1,2 +1,3 @@
 # AvatarBlendshapeAnalyzer
-Another suite of tools to make the optimizations of VR-Social Avatars less painful.
+
+Tool to automatically remove unused blendshapes on a avatar to reduce vram usage by a small amount.
